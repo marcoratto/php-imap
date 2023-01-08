@@ -383,18 +383,23 @@ class Folder {
             try {
                 // This polymorphic call is fine - Protocol::idle() will throw an exception beforehand
                 $line = $connection->nextLine();
-
                 if (($pos = strpos($line, "EXISTS")) !== false) {
+                } elseif (($pos = strpos($line, "EXPUNGE")) !== false) {
+                } elseif (($pos = strpos($line, "FETCH")) !== false) {
+                } elseif (($pos = strpos($line, "RECENT")) !== false) {
                     $connection->done();
                     $msgn = (int) substr($line, 2, $pos -2);
 
                     $this->client->openFolder($this->path, true);
-                    $message = $this->query()->getMessageByMsgn($msgn);
-                    $message->setSequence($sequence);
-                    $callback($message);
-
-                    $event = $this->getEvent("message", "new");
-                    $event::dispatch($message);
+                    // $message = $this->query()->getMessageByMsgn($msgn);
+                    // Loop on all new messages
+                    $messages = $this->query()->unseen()->get();
+                    foreach($messages as $message) {
+                        $message->setSequence($sequence);
+                        $callback($message);
+                        $event = $this->getEvent("message", "new");
+                        $event::dispatch($message);
+                    }
                     $connection->idle();
                 } elseif (strpos($line, "OK") === false) {
                     $connection->done();
